@@ -4,7 +4,6 @@
 namespace Nettools\SMS\Aws;
 
 
-use \Nettools\Core\Misc\AbstractConfig;
 use \Nettools\SMS\SMSException;
 
 
@@ -25,7 +24,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 *
 	 * @param \Aws\Sns\SnsClient $client AWS client to send sms through
 	 */
-	public function __construct(Aws\Sns\SnsClient $client)
+	public function __construct(\Aws\Sns\SnsClient $client)
 	{
 		$this->client = $client;
 	}
