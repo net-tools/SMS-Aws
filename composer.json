@@ -1,0 +1,30 @@
+{
+    "name" : "net-tools/sms-aws",
+	
+    "description" : "Composer library for sending SMS through aws gateway",
+	
+	"type": "library",
+	
+	"require" : {
+		"php": ">= 7.2.0",
+		"aws/aws-sdk-php": "^3.0.0",
+		"net-tools/sms":"^1.0.0"
+    },
+	
+	"autoload": {
+		"psr-4": {
+			"Nettools\\SMS\\": "src/"
+		}
+    },
+	 
+    "license" : "MIT",
+
+    "authors": [
+        {
+            "name": "Pierre",
+            "email": "dev@nettools.ovh",
+            "role": "Developer"
+        }
+    ]
+
+}
