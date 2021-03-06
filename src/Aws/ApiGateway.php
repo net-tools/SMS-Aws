@@ -15,7 +15,7 @@ use \Nettools\SMS\SMSException;
 class ApiGateway implements \Nettools\SMS\SMSGateway {
 
 	protected $client;
-	
+	protected $sanitizeSenderId;
 	
 	
 	
@@ -23,10 +23,12 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 * Constructor
 	 *
 	 * @param \Aws\Sns\SnsClient $client AWS client to send sms through
+	 * @param bool $sanitizeSenderId True to handle string with spaces (forbidden by AWS), and converting to camelCase
 	 */
-	public function __construct(\Aws\Sns\SnsClient $client)
+	public function __construct(\Aws\Sns\SnsClient $client, $sanitizeSenderId = true)
 	{
 		$this->client = $client;
+		$this->sanitizeSenderId = $sanitizeSenderId;
 	}
 	
 	
@@ -37,14 +39,18 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 * @param string $msg 
 	 * @param string $sender
 	 * @param string[] $to Array of recipients, numbers in international format +xxyyyyyyyyyyyyy (ex. +33612345678)
-	 * @param string $nostop Remove STOP warning at the message end (sms sent is transactionnal ; otherwise, it's promotional)
+	 * @param bool $transactional True if message sent is transactional ; otherwise i's promotional)
 	 * @return int Returns the number of messages sent, usually the number of values of $to parameter (a multi-sms message count as 1 message)
 	 * @throws \Nettools\SMS\SMSException
 	 */
-	function send($msg, $sender, array $to, $nostop = true)
+	function send($msg, $sender, array $to, $transactional = true)
 	{
 		if ( count($to) > 1 )
 			throw new \Nettools\SMS\SMSException('Sending SMS to multiple recipients is not implemented yet');
+		
+		
+		if ( $this->sanitizeSenderId )
+			$sender = str_replace(' ', '', ucwords(strtolower($sender)));
 		
 		
 		try
@@ -60,7 +66,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 						],
 						'AWS.SNS.SMS.SMSType'	=> [
 							'DataType'		=> 'String',
-							'StringValue'	=> ($nostop ? 'Transactional':'Promotional')
+							'StringValue'	=> ($transactional ? 'Transactional':'Promotional')
 						]
 					]
 				]);
