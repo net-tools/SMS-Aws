@@ -17,6 +17,8 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	protected $client;
 	protected $sanitizeSenderId;
 	
+	const AWS_TOPIC_PREFIX = 'nettools-sms-aws';
+	
 	
 	
 	/**
@@ -57,7 +59,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 			{
 			// creating topic
 			$topic = $this->client->createTopic([
-					'Name' => 'nettools-sms-aws' . uniqid()
+					'Name' => self::AWS_TOPIC_PREFIX . uniqid()
 				]);
 
 
