@@ -45,10 +45,6 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 */
 	function send($msg, $sender, array $to, $transactional = true)
 	{
-		if ( count($to) > 1 )
-			throw new \Nettools\SMS\SMSException('Sending SMS to multiple recipients is not implemented yet');
-		
-		
 		// if there are unwanted characters in sender (AWS does not permit characters other than letters and digits ; spaces or dots are forbidden)
 		if ( $this->sanitizeSenderId && preg_match('/[^A-Za-z0-9]/', $sender) )
 			$sender = str_replace(' ', '', ucwords(strtolower(preg_replace('/[^A-Za-z0-9]/', ' ', $sender))));
@@ -56,10 +52,28 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 		
 		try
 		{
-			// publish message
+			// publish message to several recipients
+			if ( count($to) > 1 )
+			{
+			// creating topic
+			$topic = $this->client->createTopic([
+					'Name' => 'nettools-sms-aws' . uniqid()
+				]);
+
+
+			// subscribing all recipients in $to array to topic created
+			foreach ( $to as $num )
+			$this->client->subscribe([
+				   'Protocol' => 'sms',
+				   'Endpoint' => $num,
+				   'TopicArn' => $topic['TopicArn']
+				]);
+
+
+			// publish message to topic
 			$ret = $this->client->publish([
 					'Message'			=> $msg,
-					'PhoneNumber'		=> $to[0],
+					'TopicArn'		=> $topic['TopicArn'],
 					'MessageAttributes'	=> [
 						'AWS.SNS.SMS.SenderID'	=> [
 							'DataType'		=> 'String',
@@ -71,6 +85,23 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 						]
 					]
 				]);
+			}
+			else
+				// publish message to a single recipient
+				$ret = $this->client->publish([
+						'Message'			=> $msg,
+						'PhoneNumber'		=> $to[0],
+						'MessageAttributes'	=> [
+							'AWS.SNS.SMS.SenderID'	=> [
+								'DataType'		=> 'String',
+								'StringValue'	=> $sender
+							],
+							'AWS.SNS.SMS.SMSType'	=> [
+								'DataType'		=> 'String',
+								'StringValue'	=> ($transactional ? 'Transactional':'Promotional')
+							]
+						]
+					]);
 		}
 		catch(\Aws\Exception\AwsException $e)
 		{
@@ -79,7 +110,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 		
 		
 		if ( $ret['MessageId'] )
-			return 1;
+			return count($to);
 		
 		
 		throw new \Nettools\SMS\SMSException('SNS unkown error : ' . print_r($ret));
