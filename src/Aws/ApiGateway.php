@@ -18,6 +18,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	protected $sanitizeSenderId;
 	
 	const AWS_TOPIC_PREFIX = 'nettools-sms-aws';
+	const AWS_SUBSCRIBE_RATE = 100;
 	
 	
 	
@@ -131,12 +132,23 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 
 
 			// subscribing all recipients in $to array to topic created
+			$n = 0;
 			foreach ( $to as $num )
+			{
+				$n++;
 				$this->client->subscribe([
 					   'Protocol' => 'sms',
 					   'Endpoint' => $num,
 					   'TopicArn' => $topic['TopicArn']
 					]);
+				
+				// throttling 
+				if ( $n == self::AWS_SUBSCRIBE_RATE )
+				{
+					$n = 0;
+					sleep(1);
+				}
+			}
 
 
 			// publish message to topic
