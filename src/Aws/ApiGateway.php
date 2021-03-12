@@ -100,7 +100,8 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 												'sms'	=> $msg,
 												'sender'=> $sender,
 												'to'	=> $to,
-												'transactional'	=> $transactional
+												'transactional'	=> $transactional,
+												'timestamp'	=> time()
 											]),
 						'QueueUrl'	=> $this->config->markAsSent['sqsUrl']
 					]);
