@@ -55,7 +55,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->method('publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
+		$client->method('Publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
@@ -86,12 +86,57 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->method('publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
+		$client->method('Publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
 		$r = $g->sendMessage('my sms', 'TEST SENDER', ['+33601020304'], false);
 		$this->assertEquals(1, $r);
+	}
+	
+	
+	
+    public function testGatewayRecipients()
+    {
+		//$api = \Aws\Sns\SnsClient
+		$config = new \Nettools\Core\Misc\ObjectConfig((object)['sanitizeSenderId' => true]);
+		
+        $client = $this->createMock(\Aws\Sns\SnsClient::class);
+		
+		$params1 = [
+			'Message'			=> 'my sms',
+			'PhoneNumber'		=> '+33601020304',
+			'MessageAttributes'	=> [
+				'AWS.SNS.SMS.SenderID'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'TestSender'
+				],
+				'AWS.SNS.SMS.SMSType'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'Promotional'
+				]
+			]
+		];
+		$params1 = [
+			'Message'			=> 'my sms',
+			'PhoneNumber'		=> '+33605060708',
+			'MessageAttributes'	=> [
+				'AWS.SNS.SMS.SenderID'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'TestSender'
+				],
+				'AWS.SNS.SMS.SMSType'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'Promotional'
+				]
+			]
+		];
+		$client->expects($this->exactly(2))->method('Publish')->will($this->onConsecutiveCalls($params1, $params2))->willReturn(['MessageId'=>'m.id']);
+		
+		
+		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
+		$r = $g->sendMessage('my sms', 'TEST SENDER', ['+33601020304', '+33605060708'], false);
+		$this->assertEquals(2, $r);
 	}
 }
 
