@@ -34,7 +34,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 * - sanitizeSenderId : true to convert senderId with spaces (forbidden by AWS), removing spaces and converting it to camelCase ; defaults to true
 	 * - subscribeRate : subscrite rate (transactions/s) ; defaults to 100
 	 * - markAsSent : indicates how to mark the message sent ; false (default) or an array with appropriate values :
-	 *         [ 'sqsArnId' => 'id',			: ID of SQS queue to store sent messages in
+	 *         [ 'sqsUrl' 	=> 'url',			: url of SQS queue to store sent messages in
 	 *           'sqsClient'=> object   ]		: \Aws\Sqs\SqsClient object
 	 *          
 	 *      or [ 'callback' => callback ] 		: callback function with signature ($msg, $sender, array $to, $transactional)
@@ -85,12 +85,12 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 		
 		
 		// if mark as sent with a SQS queue
-		if ( array_key_exists('sqsArnId', $this->config->markAsSent) && array_key_exists('sqsClient', $this->config->markAsSent) )
+		if ( array_key_exists('sqsUrl', $this->config->markAsSent) && array_key_exists('sqsClient', $this->config->markAsSent) )
 		{
 			try
 			{
 				// checking instance
-				if ( !$this->config->markAsSent['sqsClient'] instanceof \Aws\SqsClient )
+				if ( !$this->config->markAsSent['sqsClient'] instanceof \Aws\Sqs\SqsClient )
 					return false;
 				
 				
@@ -102,7 +102,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 												'to'	=> $to,
 												'transactional'	=> $transactional
 											]),
-						'QueueUrl'	=> $this->config->markAsSent['sqsArnId']
+						'QueueUrl'	=> $this->config->markAsSent['sqsUrl']
 					]);
 				
 				
