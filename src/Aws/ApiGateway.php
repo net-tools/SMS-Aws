@@ -5,6 +5,7 @@ namespace Nettools\SMS\Aws;
 
 
 use \Nettools\SMS\SMSException;
+use \Nettools\Core\Misc\AbstractConfig;
 
 
 
@@ -15,34 +16,121 @@ use \Nettools\SMS\SMSException;
 class ApiGateway implements \Nettools\SMS\SMSGateway {
 
 	protected $client;
-	protected $sanitizeSenderId;
+	protected $config;
 	
 	const AWS_TOPIC_PREFIX = 'nettools-sms-aws';
-	const AWS_SUBSCRIBE_RATE = 100;
+	const AWS_DEFAULT_SUBSCRIBE_RATE = 100;
+	const AWS_DEFAULT_SANITIZE_SENDER_ID = true;
 	
 	
 	
 	/**
 	 * Constructor
 	 *
-	 * @param \Aws\Sns\SnsClient $client AWS client to send sms through
-	 * @param bool $sanitizeSenderId True to handle string with spaces (forbidden by AWS), and converting to camelCase
+	 * @param \Aws\Sns\SnsClient $client AWS SNS client to send sms through
+	 * @param \Nettools\Misc\AbstractConfig $config Config object
+	 *
+	 * $config must have values for :
+	 * - sanitizeSenderId : true to convert senderId with spaces (forbidden by AWS), removing spaces and converting it to camelCase ; defaults to true
+	 * - subscribe_rate : subscrite rate (transactions/s) ; defaults to 100
+	 * - markAsSent : indicates how to mark the message sent ; false or an array with appropriate values :
+	 *         [ 'sqsArnId' => 'id',			: ID of SQS queue to store sent messages in
+	 *           'sqsClient'=> object   ]		: \Aws\Sqs\SqsClient object
+	 *          
+	 *      or [ 'callback' => callback ] 		: callback function with signature ($msg, $sender, array $to, $transactional)
 	 */
-	public function __construct(\Aws\Sns\SnsClient $client, $sanitizeSenderId = true)
+	public function __construct(\Aws\Sns\SnsClient $client, AbstractConfig $config)
 	{
 		$this->client = $client;
-		$this->sanitizeSenderId = $sanitizeSenderId;
+		$this->config = $config;
 	}
 	
 	
 	
-	public function sanitizeSender($sender)
+	/** 
+	 * Removing unwanted characters in aws senderId
+	 *
+	 * @param string $sender
+	 * @return string
+	 */
+	protected function sanitizeSender($sender)
 	{
 		// if there are unwanted characters in sender (AWS does not permit characters other than letters and digits ; spaces or dots are forbidden)
-		if ( $this->sanitizeSenderId && preg_match('/[^A-Za-z0-9]/', $sender) )
+		$san = $this->config->test('sanitizeSenderId') ? $this->config->sanitizeSenderId : self::AWS_DEFAULT_SANITIZE_SENDER_ID;
+		
+		if ( $san && preg_match('/[^A-Za-z0-9]/', $sender) )
 			return str_replace(' ', '', ucwords(strtolower(preg_replace('/[^A-Za-z0-9]/', ' ', $sender))));
 		else
 			return $sender;
+	}
+	
+	
+	
+	/** 
+	 * Mark a message as sent
+	 *
+	 * @param string $msg 
+	 * @param string $sender ; AWS does not permit characters other than letters and digits ; spaces or dots are forbidden, and will be removed if sanitizeSenderId option is set
+	 * @param string[] $to Array of recipients, numbers in international format +xxyyyyyyyyyyyyy (ex. +33612345678)
+	 * @param bool $transactional True if message sent is transactional ; otherwise it's promotional)
+	 * @return bool Return True if everything ok, false if there has been an error
+	 */
+	protected function markAsSent($msg, $sender, array $to, $transactional)
+	{
+		if ( $this->config->markAsSent === false )
+			return true;
+		
+		if ( !is_array($this->config->markAsSent) )
+			return false;
+		
+		
+		// if mark as sent with a SQS queue
+		if ( array_key_exists('sqsArnId', $this->config->markAsSent) && array_key_exists('sqsClient', $this->config->markAsSent) )
+		{
+			try
+			{
+				// checking instance
+				if ( !$this->config->markAsSent['sqsClient'] instanceof \Aws\SqsClient )
+					return false;
+				
+				
+				// sending message to queue
+				$ret = $this->config->markAsSent['sqsClient']->SendMessage([
+						'MessageBody' => json_encode([
+												'sms'	=> $msg,
+												'sender'=> $sender,
+												'to'	=> $to,
+												'transactional'	=> $transactional
+											]),
+						'QueueUrl'	=> $this->config->markAsSent['sqsArnId']
+					]);
+				
+				
+				return is_array($ret) && array_key_exists('MessageId', $ret);
+				
+			}
+			catch(\Aws\Exception\AwsException $e)
+			{
+				return false;
+			}
+		}
+		
+		
+		// if mark as sent with callback
+		else if ( array_key_exists('callback', $this->config->markAsSent) )
+		{
+			if ( is_callable($this->config->markAsSent['callback']) )
+				try
+				{
+					return $this->config->markAsSent['callback']($msg, $sender, $to, $transactional);
+				}
+				catch(\Exception $e)
+				{
+					return false;	
+				}
+			else
+				return false;
+		}
 	}
 	
 	
@@ -89,19 +177,23 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 							]
 						]
 					]);
+				
+				
+				// mark as sent
+				$this->markAsSent($msg, $sender, $to, $transactional);
+				
+				
+				if ( is_array($ret) && array_key_exists('MessageId', $ret) )
+					return 1;
+
+
+				// we shouldn't arrive here
+				throw new \Nettools\SMS\SMSException('SNS unkown error : ' . print_r($ret));
 			}
 			catch(\Aws\Exception\AwsException $e)
 			{
 				throw new \Nettools\SMS\SMSException($e->getMessage());
 			}
-
-
-			if ( $ret['MessageId'] )
-				return count($to);
-
-
-			// we shouldn't arrive here
-			throw new \Nettools\SMS\SMSException('SNS unkown error : ' . print_r($ret));
 		}
 	}
 	
@@ -143,7 +235,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 					]);
 				
 				// throttling 
-				if ( $n == self::AWS_SUBSCRIBE_RATE )
+				if ( $n == self::AWS_DEFAULT_SUBSCRIBE_RATE )
 				{
 					$n = 0;
 					sleep(1);
@@ -166,20 +258,23 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 						]
 					]
 				]);
+
+			
+			// mark as sent
+			$this->markAsSent($msg, $sender, $to, $transactional);
+			
+			
+			if ( is_array($ret) && array_key_exists('MessageId', $ret) )
+				return count($to);
+
+
+			// we shouldn't arrive here
+			throw new \Nettools\SMS\SMSException('SNS unkown error : ' . print_r($ret));
 		}
 		catch(\Aws\Exception\AwsException $e)
 		{
 			throw new \Nettools\SMS\SMSException($e->getMessage());
 		}
-		
-
-		
-		if ( $ret['MessageId'] )
-			return count($to);
-
-
-		// we shouldn't arrive here
-		throw new \Nettools\SMS\SMSException('SNS unkown error : ' . print_r($ret));
 	}
 	
 	
