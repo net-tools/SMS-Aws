@@ -32,8 +32,8 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 *
 	 * $config must have values for :
 	 * - sanitizeSenderId : true to convert senderId with spaces (forbidden by AWS), removing spaces and converting it to camelCase ; defaults to true
-	 * - subscribe_rate : subscrite rate (transactions/s) ; defaults to 100
-	 * - markAsSent : indicates how to mark the message sent ; false or an array with appropriate values :
+	 * - subscribeRate : subscrite rate (transactions/s) ; defaults to 100
+	 * - markAsSent : indicates how to mark the message sent ; false (default) or an array with appropriate values :
 	 *         [ 'sqsArnId' => 'id',			: ID of SQS queue to store sent messages in
 	 *           'sqsClient'=> object   ]		: \Aws\Sqs\SqsClient object
 	 *          
@@ -77,7 +77,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 */
 	protected function markAsSent($msg, $sender, array $to, $transactional)
 	{
-		if ( $this->config->markAsSent === false )
+		if ( !$this->config->test('markAsSent') || ($this->config->markAsSent === false) )
 			return true;
 		
 		if ( !is_array($this->config->markAsSent) )
@@ -221,6 +221,10 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 			$topic = $this->client->createTopic([
 					'Name' => self::AWS_TOPIC_PREFIX . uniqid()
 				]);
+			
+			
+			// subscribe_rate
+			$rate = $this->config->test('subscribeRate') ? $this->config->subscribeRate : self::AWS_DEFAULT_SUBSCRIBE_RATE;
 
 
 			// subscribing all recipients in $to array to topic created
@@ -235,7 +239,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 					]);
 				
 				// throttling 
-				if ( $n == self::AWS_DEFAULT_SUBSCRIBE_RATE )
+				if ( $n == $rate )
 				{
 					$n = 0;
 					sleep(1);
