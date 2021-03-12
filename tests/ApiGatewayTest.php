@@ -8,7 +8,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
     public function testGateway()
     {
 		//$api = \Aws\Sns\SnsClient
-		$config = new \Nettools\Core\Misc\ObjectConfig(['sanitizeSenderId' => true]);
+		$config = new \Nettools\Core\Misc\ObjectConfig(['sanitizeSenderId' => false]);
 		
         $client = $this->createMock(\Aws\Sns\SnsClient::class);
 		
@@ -60,6 +60,37 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
 		$r = $g->sendMessage('my sms', 'TESTSENDER', ['+33601020304'], true);
+		$this->assertEquals(1, $r);
+	}
+	
+	
+	
+    public function testGatewaySanitizeSenderId()
+    {
+		//$api = \Aws\Sns\SnsClient
+		$config = new \Nettools\Core\Misc\ObjectConfig(['sanitizeSenderId' => true]);
+		
+        $client = $this->createMock(\Aws\Sns\SnsClient::class);
+		
+		$params = [
+			'Message'			=> 'my sms',
+			'PhoneNumber'		=> '+33601020304',
+			'MessageAttributes'	=> [
+				'AWS.SNS.SMS.SenderID'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'TestSender'
+				],
+				'AWS.SNS.SMS.SMSType'	=> [
+					'DataType'		=> 'String',
+					'StringValue'	=> 'Promotional'
+				]
+			]
+		];
+		$client->method('publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
+		
+		
+		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
+		$r = $g->sendMessage('my sms', 'TEST SENDER', ['+33601020304'], false);
 		$this->assertEquals(1, $r);
 	}
 }
