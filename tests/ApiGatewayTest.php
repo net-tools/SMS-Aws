@@ -60,8 +60,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
 		$r = $g->sendMessage('my sms', 'TESTSENDER', ['+33601020304'], true);
-		
-		$this->assertEquals('m.id', $r['MessageId']);
+		$this->assertEquals(1, $r);
 	}
 }
 
