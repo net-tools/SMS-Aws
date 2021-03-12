@@ -21,6 +21,8 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	const AWS_TOPIC_PREFIX = 'nettools-sms-aws';
 	const AWS_DEFAULT_SUBSCRIBE_RATE = 100;
 	const AWS_DEFAULT_SANITIZE_SENDER_ID = true;
+	const AWS_MARK_AS_SENT_SQS = 'sqs';
+	const AWS_MARK_AS_SENT_CALLBACK = 'callback';
 	
 	
 	
@@ -33,11 +35,10 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	 * $config must have values for :
 	 * - sanitizeSenderId : true to convert senderId with spaces (forbidden by AWS), removing spaces and converting it to camelCase ; defaults to true
 	 * - subscribeRate : subscrite rate (transactions/s) ; defaults to 100
-	 * - markAsSent : indicates how to mark the message sent ; false (default) or an array with appropriate values :
-	 *         [ 'sqsUrl' 	=> 'url',			: url of SQS queue to store sent messages in
-	 *           'sqsClient'=> object   ]		: \Aws\Sqs\SqsClient object
-	 *          
-	 *      or [ 'callback' => callback ] 		: callback function with signature ($msg, $sender, array $to, $transactional)
+	 * - markAsSent : indicates how to mark the message sent ; values can be false|'sqs'|'callback'
+	 * - sqsUrl : if `markAsSent` = ApiGateway::AWS_MARK_AS_SENT_SQS, url of SQS queue to store sent messages 
+	 * - sqsClient : if `markAsSent` = ApiGateway::AWS_MARK_AS_SENT_SQS, \Aws\Sqs\SqsClient object to store sent messages through
+	 * - sentCallback : if `markAsSent` = ApiGateway::AWS_MARK_AS_SENT_CALLBACK, callback function with signature ($msg, $sender, array $to, $transactional)
 	 */
 	public function __construct(\Aws\Sns\SnsClient $client, AbstractConfig $config)
 	{
@@ -79,23 +80,20 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 	{
 		if ( !$this->config->test('markAsSent') || ($this->config->markAsSent === false) )
 			return true;
+
 		
-		if ( !is_array($this->config->markAsSent) )
-			return false;
-		
-		
-		// if mark as sent with a SQS queue
-		if ( array_key_exists('sqsUrl', $this->config->markAsSent) && array_key_exists('sqsClient', $this->config->markAsSent) )
+		// if mark as sent with a SQS queue, and all mandatory parameters present
+		if( ($this->config->markAsSent == self::AWS_MARK_AS_SENT_SQS) && $this->config->test('sqsUrl') && $this->config->test('sqsClient') )
 		{
 			try
 			{
 				// checking instance
-				if ( !$this->config->markAsSent['sqsClient'] instanceof \Aws\Sqs\SqsClient )
+				if ( !$this->config->sqsClient instanceof \Aws\Sqs\SqsClient )
 					return false;
 				
 				
 				// sending message to queue
-				$ret = $this->config->markAsSent['sqsClient']->SendMessage([
+				$ret = $this->config->sqsClient->SendMessage([
 						'MessageBody' => json_encode([
 												'sms'	=> $msg,
 												'sender'=> $sender,
@@ -103,7 +101,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 												'transactional'	=> $transactional,
 												'timestamp'	=> time()
 											]),
-						'QueueUrl'	=> $this->config->markAsSent['sqsUrl']
+						'QueueUrl'	=> $this->config->sqsUrl
 					]);
 				
 				
@@ -118,12 +116,12 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 		
 		
 		// if mark as sent with callback
-		else if ( array_key_exists('callback', $this->config->markAsSent) )
+		else if( ($this->config->markAsSent == self::AWS_MARK_AS_SENT_CALLBACK) && $this->config->test('sentCallback') )
 		{
-			if ( is_callable($this->config->markAsSent['callback']) )
+			if ( is_callable($this->config->sentCallback) )
 				try
 				{
-					return $this->config->markAsSent['callback']($msg, $sender, $to, $transactional);
+					return $this->config->sentCallback($msg, $sender, $to, $transactional);
 				}
 				catch(\Exception $e)
 				{
@@ -132,6 +130,9 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 			else
 				return false;
 		}
+		
+		
+		return false;
 	}
 	
 	
