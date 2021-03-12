@@ -8,7 +8,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
     public function testGateway()
     {
 		//$api = \Aws\Sns\SnsClient
-		$config = new \Nettools\Core\Misc\ObjectConfig(['sanitizeSenderId' => false]);
+		$config = new \Nettools\Core\Misc\ObjectConfig((object)['sanitizeSenderId' => false]);
 		
         $client = $this->createMock(\Aws\Sns\SnsClient::class);
 		
@@ -68,7 +68,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
     public function testGatewaySanitizeSenderId()
     {
 		//$api = \Aws\Sns\SnsClient
-		$config = new \Nettools\Core\Misc\ObjectConfig(['sanitizeSenderId' => true]);
+		$config = new \Nettools\Core\Misc\ObjectConfig((object)['sanitizeSenderId' => true]);
 		
         $client = $this->createMock(\Aws\Sns\SnsClient::class);
 		
