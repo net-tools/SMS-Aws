@@ -107,7 +107,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 					]);
 				
 				
-				return is_array($ret) && array_key_exists('MessageId', $ret);
+				return $ret['MessageId']?true:false;
 				
 			}
 			catch(\Aws\Exception\AwsException $e)
@@ -184,7 +184,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 				$this->markAsSent($msg, $sender, $to, $transactional);
 				
 				
-				if ( is_array($ret) && array_key_exists('MessageId', $ret) )
+				if ( $ret['MessageId'] )
 					return 1;
 
 
@@ -269,7 +269,7 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 			$this->markAsSent($msg, $sender, $to, $transactional);
 			
 			
-			if ( is_array($ret) && array_key_exists('MessageId', $ret) )
+			if ( $ret['MessageId'] )
 				return count($to);
 
 
