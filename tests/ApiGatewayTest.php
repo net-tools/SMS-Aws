@@ -48,7 +48,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 										'sms'			=> 'my sms',
 										'sender'		=> 'TESTSENDER',
 										'to'			=> ['+33601020304'],
-										'transactional'	=> 1,
+										'transactional'	=> true,
 										'timestamp'		=> $dt
 									]),
 				'QueueUrl'		=> 'q.url'
@@ -80,7 +80,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		$config = new \Nettools\Core\Misc\ObjectConfig((object)[
 				'sanitizeSenderId' => false, 
 				'markAsSent' => \Nettools\SMS\Aws\ApiGateway::AWS_MARK_AS_SENT_CALLBACK, 
-				'sentCallback' => function($msg, $sender, array $to, $transactional) use ($ok) {
+				'sentCallback' => function($msg, $sender, array $to, $transactional) use (&$ok) {
 						if ( ($msg == 'my sms') && ($sender == 'TESTSENDER') && ($to==['+33601020304']) && ($transactional == true) )
 							$ok = true;
 						else
