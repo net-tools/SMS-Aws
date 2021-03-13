@@ -11,36 +11,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		$config = new \Nettools\Core\Misc\ObjectConfig((object)['sanitizeSenderId' => false]);
 		
         $client = $this->createMock(\Aws\Sns\SnsClient::class);
-		
-		/*$dt = time();
-		$params = [
-				'MessageBody'	=> json_encode([
-										'sms'			=> 'mon sms',
-										'sender'		=> 'AM63',
-										'to'			=> '+33601234567',
-										'transactional'	=> 1,
-										'timestamp'		=> $dt
-									]),
-				'QueueUrl'		=> 'q.url'
-			];
-        $client->method('SendMessage')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);*/
-		
-/*
 
-	'Message'			=> $msg,
-	'PhoneNumber'		=> $to[0],
-	'MessageAttributes'	=> [
-		'AWS.SNS.SMS.SenderID'	=> [
-			'DataType'		=> 'String',
-			'StringValue'	=> $sender
-		],
-		'AWS.SNS.SMS.SMSType'	=> [
-			'DataType'		=> 'String',
-			'StringValue'	=> ($transactional ? 'Transactional':'Promotional')
-		]
-	]
-
-*/
 		$params = [
 			'Message'			=> 'my sms',
 			'PhoneNumber'		=> '+33601020304',
@@ -59,6 +30,50 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
+		$r = $g->send('my sms', 'TESTSENDER', ['+33601020304'], true);
+		$this->assertEquals(1, $r);
+	}
+	
+	
+	
+    public function testGatewayMarkAsSent()
+    {
+		//$api = \Aws\Sns\SnsClient
+		$ok = false;
+		
+        $snsclient = $this->createMock(\Aws\Sns\SnsClient::class);
+		$snsclient->method('__call')->willReturn(['MessageId'=>'m.id']);
+
+		
+		$dt = time();
+		$params = [
+				'MessageBody'	=> json_encode([
+										'sms'			=> 'my sms',
+										'sender'		=> 'TESTSENDER',
+										'to'			=> '+33601020304',
+										'transactional'	=> 1,
+										'timestamp'		=> $dt
+									]),
+				'QueueUrl'		=> 'q.url'
+			];
+		
+        $sqsclient = $this->createMock(\Aws\Sqs\SqsClient::class);
+		$sqsclient->method('__call')->with($this->equalTo('SendMessage'), $this->equalTo([$params]))->willReturn(['MessageId'=>'m.id']);
+		
+		
+		$config = new \Nettools\Core\Misc\ObjectConfig((object)[
+				'sanitizeSenderId' => false, 
+				'markAsSent' => 'callback', 
+				'sqsUrl' => 'q.url',
+				'sqsClient' => $sqsclient
+				/*'sentCallback' => function($msg, $sender, array $to, $transactional) use ($ok) {
+						if ( ($msg == 'my sms') && ($sender == 'TESTSENDER') && ($to==['+33601020304']) && ($transactional == true) )
+							$ok = true;
+						else
+							$ok = false;
+					}*/
+			]);
+		$g = new \Nettools\SMS\Aws\ApiGateway($snsclient, $config);
 		$r = $g->send('my sms', 'TESTSENDER', ['+33601020304'], true);
 		$this->assertEquals(1, $r);
 	}
@@ -103,9 +118,9 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		
         $client = $this->createMock(\Aws\Sns\SnsClient::class);
 		
-		$params1 = [
+		$params = [
 			'Message'			=> 'my sms',
-			'PhoneNumber'		=> '+33601020304',
+			'TopicArn'			=> 'topic.arn',
 			'MessageAttributes'	=> [
 				'AWS.SNS.SMS.SenderID'	=> [
 					'DataType'		=> 'String',
@@ -117,21 +132,34 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$params1 = [
-			'Message'			=> 'my sms',
-			'PhoneNumber'		=> '+33605060708',
-			'MessageAttributes'	=> [
-				'AWS.SNS.SMS.SenderID'	=> [
-					'DataType'		=> 'String',
-					'StringValue'	=> 'TestSender'
-				],
-				'AWS.SNS.SMS.SMSType'	=> [
-					'DataType'		=> 'String',
-					'StringValue'	=> 'Promotional'
-				]
-			]
-		];
-		$client->expects($this->exactly(2))->method('__call')->withConsecutive(['publish', [$params1]], ['publish', [$params2]])->willReturn(['MessageId'=>'m.id']);
+
+		$client->method('__call')->withConsecutive(
+				// createTopic
+				[$this->equalTo('createTopic'), $this->anything()], 
+
+				// subscribe tel 1
+				[$this->equalTo('subscribe'), $this->equalTo([
+						[
+							'Protocol'	=> 'sms',
+							'Endpoint'	=> '+33601020304',
+							'TopicArn'	=> 'topic.arn'
+						]
+					])
+				], 
+			
+				// subscribe tel 2
+				[$this->equalTo('subscribe'), $this->equalTo([
+						[
+							'Protocol'	=> 'sms',
+							'Endpoint'	=> '+33605060708',
+							'TopicArn'	=> 'topic.arn'
+						]
+					])
+				], 
+
+				// publish to topic
+				[$this->equalTo('publish'), $this->equalTo([$params])]
+			)->will($this->onConsecutiveCalls(['TopicArn'=>'topic.arn'], null, null, ['MessageId'=>'m.id']));
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
