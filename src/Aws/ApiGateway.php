@@ -121,7 +121,8 @@ class ApiGateway implements \Nettools\SMS\SMSGateway {
 			if ( is_callable($this->config->sentCallback) )
 				try
 				{
-					return $this->config->sentCallback($msg, $sender, $to, $transactional);
+					$cb = $this->config->sentCallback;
+					return $cb($msg, $sender, $to, $transactional);
 				}
 				catch(\Exception $e)
 				{

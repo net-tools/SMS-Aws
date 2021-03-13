@@ -47,7 +47,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				'MessageBody'	=> json_encode([
 										'sms'			=> 'my sms',
 										'sender'		=> 'TESTSENDER',
-										'to'			=> '+33601020304',
+										'to'			=> ['+33601020304'],
 										'transactional'	=> 1,
 										'timestamp'		=> $dt
 									]),
