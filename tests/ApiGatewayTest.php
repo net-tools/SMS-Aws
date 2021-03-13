@@ -55,11 +55,11 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->method('Publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
+		$client->method('__call')->with('publish', $this->equalTo([$params]))->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
-		$r = $g->sendMessage('my sms', 'TESTSENDER', ['+33601020304'], true);
+		$r = $g->send('my sms', 'TESTSENDER', ['+33601020304'], true);
 		$this->assertEquals(1, $r);
 	}
 	
@@ -86,11 +86,11 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->method('__call')->with($this->equalTo('ublish'), $this->equalTo([$params]))->willReturn(['MessageId'=>'m.id']);
+		$client->method('__call')->with($this->equalTo('publish'), $this->equalTo([$params]))->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
-		$r = $g->sendMessage('my sms', 'TEST SENDER', ['+33601020304'], false);
+		$r = $g->send('my sms', 'TEST SENDER', ['+33601020304'], false);
 		$this->assertEquals(1, $r);
 	}
 	
@@ -131,11 +131,11 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->expects($this->exactly(2))->method('__call')->withConsecutive(['publish', $params1], ['publish', $params2])->willReturn(['MessageId'=>'m.id']);
+		$client->expects($this->exactly(2))->method('__call')->withConsecutive(['publish', [$params1]], ['publish', [$params2]])->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
-		$r = $g->sendMessage('my sms', 'TEST SENDER', ['+33601020304', '+33605060708'], false);
+		$r = $g->send('my sms', 'TEST SENDER', ['+33601020304', '+33605060708'], false);
 		$this->assertEquals(2, $r);
 	}
 }
