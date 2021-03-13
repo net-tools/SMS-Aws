@@ -36,11 +36,8 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 	
 	
 	
-    public function testGatewayMarkAsSent()
+    public function testGatewayMarkAsSentSqs()
     {
-		//$api = \Aws\Sns\SnsClient
-		$ok = false;
-		
         $snsclient = $this->createMock(\Aws\Sns\SnsClient::class);
 		$snsclient->method('__call')->willReturn(['MessageId'=>'m.id']);
 
@@ -63,19 +60,37 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 		
 		$config = new \Nettools\Core\Misc\ObjectConfig((object)[
 				'sanitizeSenderId' => false, 
-				'markAsSent' => 'callback', 
+				'markAsSent' => \Nettools\SMS\Aws\ApiGateway::AWS_MARK_AS_SENT_SQS,
 				'sqsUrl' => 'q.url',
 				'sqsClient' => $sqsclient
-				/*'sentCallback' => function($msg, $sender, array $to, $transactional) use ($ok) {
-						if ( ($msg == 'my sms') && ($sender == 'TESTSENDER') && ($to==['+33601020304']) && ($transactional == true) )
-							$ok = true;
-						else
-							$ok = false;
-					}*/
 			]);
 		$g = new \Nettools\SMS\Aws\ApiGateway($snsclient, $config);
 		$r = $g->send('my sms', 'TESTSENDER', ['+33601020304'], true);
 		$this->assertEquals(1, $r);
+	}
+	
+	
+	
+    public function testGatewayMarkAsSentCallback()
+    {
+        $snsclient = $this->createMock(\Aws\Sns\SnsClient::class);
+		$snsclient->method('__call')->willReturn(['MessageId'=>'m.id']);
+
+		$ok = false;
+		$config = new \Nettools\Core\Misc\ObjectConfig((object)[
+				'sanitizeSenderId' => false, 
+				'markAsSent' => \Nettools\SMS\Aws\ApiGateway::AWS_MARK_AS_SENT_CALLBACK, 
+				'sentCallback' => function($msg, $sender, array $to, $transactional) use ($ok) {
+						if ( ($msg == 'my sms') && ($sender == 'TESTSENDER') && ($to==['+33601020304']) && ($transactional == true) )
+							$ok = true;
+						else
+							$ok = false;
+					}
+			]);
+		$g = new \Nettools\SMS\Aws\ApiGateway($snsclient, $config);
+		$r = $g->send('my sms', 'TESTSENDER', ['+33601020304'], true);
+		$this->assertEquals(1, $r);
+		$this->assertEquals(true, $ok);
 	}
 	
 	
