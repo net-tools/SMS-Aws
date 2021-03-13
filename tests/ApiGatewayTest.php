@@ -86,7 +86,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->method('Publish')->with($this->equalTo($params))->willReturn(['MessageId'=>'m.id']);
+		$client->method('__call')->with($this->equalTo('ublish'), $this->equalTo([$params]))->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
@@ -131,7 +131,7 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 				]
 			]
 		];
-		$client->expects($this->exactly(2))->method('Publish')->will($this->onConsecutiveCalls($params1, $params2))->willReturn(['MessageId'=>'m.id']);
+		$client->expects($this->exactly(2))->method('__call')->withConsecutive(['publish', $params1], ['publish', $params2])->willReturn(['MessageId'=>'m.id']);
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
