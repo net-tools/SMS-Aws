@@ -11,7 +11,7 @@ use \Nettools\Core\Misc\AbstractConfig;
 
 
 /**
- * Classe to send SMS through Aws API
+ * Class to send SMS through Aws API
  */
 class ApiGateway implements \Nettools\SMS\SMSGateway {
 

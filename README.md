@@ -1,0 +1,1 @@
+Please refer to nettools/sms README.md file or `Aws\ApiGateway` constructor parameters.
