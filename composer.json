@@ -9,7 +9,7 @@
 		"php": ">= 7.2.0",
 		"aws/aws-sdk-php": "^3.0.0",
 		"net-tools/sms":"^1.0.0",
-		"phlib/sms-length": "^1.0.0"		
+		"phlib/sms-length": "^2.0.0"		
     },
 	
 	"autoload": {
