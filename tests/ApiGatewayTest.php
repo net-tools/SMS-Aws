@@ -3,9 +3,22 @@
 namespace Nettools\SMS\Aws\Tests;
 
 
+
+use \olvlvl\Given\GivenTrait;
+
+
+
+
+
+
 class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 {
-    public function testGateway()
+	use GivenTrait;
+
+	
+	
+	
+	public function testGateway()
     {
 		$config = new \Nettools\Core\Misc\ObjectConfig((object)['sanitizeSenderId' => false]);
 		
@@ -145,7 +158,29 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 			]
 		];
 
-		$client->method('__call')/*->withConsecutive(
+		$client->method('__call')
+			->will($this
+				->given('createTopic', Assert::anything())->return(['TopicArn'=>'topic.arn'])
+				->given('subscribe', array(
+						[
+							'Protocol'	=> 'sms',
+							'Endpoint'	=> '+33601020304',
+							'TopicArn'	=> 'topic.arn'
+						]
+					))->return(NULL)
+				->given('subscribe', array(
+						[
+							'Protocol'	=> 'sms',
+							'Endpoint'	=> '+33605060708',
+							'TopicArn'	=> 'topic.arn'
+						]
+					))->return(NULL)
+				->given('publish', [$params])->return(['MessageId'=>'m.id'])
+				   
+				   
+			);
+			
+			/*->withConsecutive(
 				// createTopic
 				[$this->equalTo('createTopic'), $this->anything()], 
 
@@ -171,7 +206,8 @@ class ApiGatewayTest extends \PHPUnit\Framework\TestCase
 
 				// publish to topic
 				[$this->equalTo('publish'), $this->equalTo([$params])]
-			)*/->will($this->onConsecutiveCalls(['TopicArn'=>'topic.arn'], null, null, ['MessageId'=>'m.id']));
+			)*/
+		//->will($this->onConsecutiveCalls(['TopicArn'=>'topic.arn'], null, null, ['MessageId'=>'m.id']));
 		
 		
 		$g = new \Nettools\SMS\Aws\ApiGateway($client, $config);
