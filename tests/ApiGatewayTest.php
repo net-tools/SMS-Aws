@@ -5,7 +5,7 @@ namespace Nettools\SMS\Aws\Tests;
 
 
 use \olvlvl\Given\GivenTrait;
-
+use \PHPUnit\Framework\Assert;
 
 
 
